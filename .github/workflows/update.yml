@@ -1,0 +1,59 @@
+name: Auto Update
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Täglich um 6:00 UTC
+  workflow_dispatch:      # Manuell auslösbar
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+
+      - name: Check for updates
+        id: check
+        run: |
+          MANIFEST=$(curl -fsSL https://proton.me/download/pass-cli/versions.json)
+          VERSION=$(echo "$MANIFEST" | jq -r '.passCliVersions.version')
+          HASH=$(echo "$MANIFEST" | jq -r '.passCliVersions.urls.linux.x86_64.hash')
+          CURRENT=$(grep 'version = ' package.nix | sed 's/.*"\(.*\)".*/\1/')
+          
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "latest=$VERSION" >> $GITHUB_OUTPUT
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          
+          if [ "$VERSION" != "$CURRENT" ]; then
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update package
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          VERSION="${{ steps.check.outputs.latest }}"
+          HASH="${{ steps.check.outputs.hash }}"
+          sed -i "s/version = \".*\"/version = \"$VERSION\"/" package.nix
+          sed -i "s/sha256 = \".*\"/sha256 = \"$HASH\"/" package.nix
+
+      - name: Test build
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          nix build .#proton-pass-cli --accept-flake-config
+
+      - name: Create Pull Request
+        if: steps.check.outputs.needs_update == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "Update proton-pass-cli to ${{ steps.check.outputs.latest }}"
+          title: "Update proton-pass-cli to ${{ steps.check.outputs.latest }}"
+          body: |
+            Automatic update from ${{ steps.check.outputs.current }} to ${{ steps.check.outputs.latest }}.
+            
+            - [Release Notes](https://protonpass.github.io/pass-cli/)
+          branch: update-${{ steps.check.outputs.latest }}
+          delete-branch: true
