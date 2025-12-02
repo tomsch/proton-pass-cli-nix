@@ -124,11 +124,8 @@ in
     description = "Proton Pass SSH Agent";
     # Don't auto-start - requires login first
     after = [ "graphical-session.target" ];
-    environment = {
-      PROTON_PASS_KEY_PROVIDER = "env";
-      PROTON_PASS_ENCRYPTION_KEY = "YOUR_BASE64_KEY_HERE";
-    };
     serviceConfig = {
+      EnvironmentFile = "/home/YOUR_USER/.config/secrets.env";
       ExecStart = "${proton-pass-cli}/bin/pass-cli ssh-agent start";
       Restart = "on-failure";
       RestartSec = 5;
@@ -136,6 +133,29 @@ in
   };
 }
 ```
+
+### Secrets File (Recommended)
+
+Instead of hardcoding secrets in your Nix config, use a secrets file:
+
+```bash
+# ~/.config/secrets.env (chmod 600, add to .gitignore)
+PROTON_PASS_KEY_PROVIDER=env
+PROTON_PASS_ENCRYPTION_KEY="YOUR_BASE64_KEY_HERE"
+```
+
+Generate a key once:
+```bash
+head -c 32 /dev/urandom | base64
+```
+
+Load in your shell config:
+```bash
+# In .zshrc or .bashrc
+[[ -f ~/.config/secrets.env ]] && source ~/.config/secrets.env
+```
+
+This keeps secrets out of your git repository.
 
 ### Helper Script
 
