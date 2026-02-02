@@ -2,7 +2,7 @@ name: Auto Update
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Hourly
+    - cron: '0 */6 * * *'  # Hourly
   workflow_dispatch:      # Manual trigger
 
 jobs:
