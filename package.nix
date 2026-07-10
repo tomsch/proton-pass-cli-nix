@@ -2,11 +2,11 @@
 
 stdenv.mkDerivation rec {
   pname = "proton-pass-cli";
-  version = "2.2.2";
+  version = "2.2.3";
 
   src = fetchurl {
     url = "https://proton.me/download/pass-cli/${version}/pass-cli-linux-x86_64";
-    sha256 = "65bf75195bfd0fe8d9660144c837466b7ee9195d38e56e3557d5ee6439c5f751";
+    sha256 = "7188f02a7c1e79a860f7166ad2c34f7a2e6c961265b70677e2704f216dd176d9";
   };
 
   dontUnpack = true;
