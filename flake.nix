@@ -5,16 +5,19 @@
 
   outputs = { self, nixpkgs }: 
     let
-      system = "x86_64-linux";
-      pkgs = import nixpkgs {
-        inherit system;
-        config.allowUnfree = true;
-      };
+      systems = [ "x86_64-linux" "aarch64-linux" ];
+      forAllSystems = nixpkgs.lib.genAttrs systems;
     in {
-      packages.${system} = {
-        default = pkgs.callPackage ./package.nix {};
-        proton-pass-cli = self.packages.${system}.default;
-      };
+      packages = forAllSystems (system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
+        in {
+          default = pkgs.callPackage ./package.nix {};
+          proton-pass-cli = self.packages.${system}.default;
+        });
       
       overlays.default = final: prev: {
         proton-pass-cli = final.callPackage ./package.nix {};

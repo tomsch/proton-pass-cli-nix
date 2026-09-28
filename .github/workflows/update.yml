@@ -13,20 +13,30 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Set up QEMU (aarch64 emulation)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Install Nix
         uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            extra-platforms = aarch64-linux
 
       - name: Check for updates
         id: check
         run: |
           MANIFEST=$(curl -fsSL https://proton.me/download/pass-cli/versions.json)
           VERSION=$(echo "$MANIFEST" | jq -r '.passCliVersions.version')
-          HASH=$(echo "$MANIFEST" | jq -r '.passCliVersions.urls.linux.x86_64.hash')
+          HASH_X86_64=$(echo "$MANIFEST" | jq -r '.passCliVersions.urls.linux.x86_64.hash')
+          HASH_AARCH64=$(echo "$MANIFEST" | jq -r '.passCliVersions.urls.linux.aarch64.hash')
           CURRENT=$(grep 'version = ' package.nix | sed 's/.*"\(.*\)".*/\1/')
           
           echo "current=$CURRENT" >> $GITHUB_OUTPUT
           echo "latest=$VERSION" >> $GITHUB_OUTPUT
-          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          echo "hash_x86_64=$HASH_X86_64" >> $GITHUB_OUTPUT
+          echo "hash_aarch64=$HASH_AARCH64" >> $GITHUB_OUTPUT
           
           if [ "$VERSION" != "$CURRENT" ]; then
             echo "needs_update=true" >> $GITHUB_OUTPUT
@@ -38,14 +48,19 @@ jobs:
         if: steps.check.outputs.needs_update == 'true'
         run: |
           VERSION="${{ steps.check.outputs.latest }}"
-          HASH="${{ steps.check.outputs.hash }}"
+          HASH_X86_64="${{ steps.check.outputs.hash_x86_64 }}"
+          HASH_AARCH64="${{ steps.check.outputs.hash_aarch64 }}"
           sed -i "s/version = \".*\"/version = \"$VERSION\"/" package.nix
-          sed -i "s/sha256 = \".*\"/sha256 = \"$HASH\"/" package.nix
+          sed -i "/x86_64-linux = /s/sha256 = \"[^\"]*\"/sha256 = \"$HASH_X86_64\"/" package.nix
+          sed -i "/aarch64-linux = /s/sha256 = \"[^\"]*\"/sha256 = \"$HASH_AARCH64\"/" package.nix
 
       - name: Test build
         if: steps.check.outputs.needs_update == 'true'
         run: |
-          nix build .#proton-pass-cli --accept-flake-config
+          for system in x86_64-linux aarch64-linux; do
+            nix build ".#packages.$system.proton-pass-cli" --accept-flake-config -o "result-$system"
+            "./result-$system/bin/pass-cli" --version
+          done
 
       - name: Commit and push
         if: steps.check.outputs.needs_update == 'true'
