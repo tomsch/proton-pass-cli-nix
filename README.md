@@ -2,6 +2,8 @@
 
 Unofficial Nix package for [Proton Pass CLI](https://protonpass.github.io/pass-cli/).
 
+Supported systems: `x86_64-linux`, `aarch64-linux`.
+
 ## Installation
 
 ### Flake Input (NixOS/Home Manager)
@@ -16,6 +18,7 @@ Unofficial Nix package for [Proton Pass CLI](https://protonpass.github.io/pass-c
       modules = [{
         environment.systemPackages = [
           proton-pass-cli.packages.x86_64-linux.default
+          # or, on ARM64: proton-pass-cli.packages.aarch64-linux.default
         ];
       }];
     };

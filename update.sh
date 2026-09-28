@@ -7,7 +7,8 @@ echo "Fetching latest version..."
 MANIFEST=$(curl -fsSL https://proton.me/download/pass-cli/versions.json)
 
 VERSION=$(echo "$MANIFEST" | jq -r '.passCliVersions.version')
-HASH=$(echo "$MANIFEST" | jq -r '.passCliVersions.urls.linux.x86_64.hash')
+HASH_X86_64=$(echo "$MANIFEST" | jq -r '.passCliVersions.urls.linux.x86_64.hash')
+HASH_AARCH64=$(echo "$MANIFEST" | jq -r '.passCliVersions.urls.linux.aarch64.hash')
 
 CURRENT_VERSION=$(grep 'version = ' package.nix | sed 's/.*"\(.*\)".*/\1/')
 
@@ -19,7 +20,8 @@ fi
 echo "Updating $CURRENT_VERSION → $VERSION"
 
 sed -i "s/version = \".*\"/version = \"$VERSION\"/" package.nix
-sed -i "s/sha256 = \".*\"/sha256 = \"$HASH\"/" package.nix
+sed -i "/x86_64-linux = /s/sha256 = \"[^\"]*\"/sha256 = \"$HASH_X86_64\"/" package.nix
+sed -i "/aarch64-linux = /s/sha256 = \"[^\"]*\"/sha256 = \"$HASH_AARCH64\"/" package.nix
 
 echo "Updated to $VERSION"
 echo ""
